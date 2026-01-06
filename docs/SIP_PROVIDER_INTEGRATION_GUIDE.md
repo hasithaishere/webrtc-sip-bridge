@@ -197,23 +197,46 @@ SIP_DOMAIN=freeswitch.yourdomain.com
 
 ### ElevenLabs AI Agent Integration
 
-**1. Get Agent Credentials**
+#### **Step 1: Create/Login to ElevenLabs Account**
+```bash
+# Go to: https://elevenlabs.io
+# Sign up or login to your account
+```
+
+#### **Step 2: Access Conversational AI**
 ```
 ElevenLabs Dashboard → Conversational AI → Agents
-→ Select your agent → Get SIP credentials
+→ Click "Create Agent" or select existing agent
 ```
 
-**2. Note the Details**
-- Agent ID (username)
-- API Key (password)
-- SIP endpoint
+#### **Step 3: Enable SIP Integration**
+```
+Agent Settings → Integrations → SIP
+→ Enable SIP integration
+→ Copy the SIP credentials:
+  - SIP Username (Agent ID)
+  - SIP Password (API Key)
+  - SIP Host: sip.elevenlabs.io
+  - Port: 5060
+```
 
-**3. Update .env**
+#### **Step 4: Get Your Credentials**
+```
+The SIP credentials are displayed in the agent settings:
+- Username: Your Agent ID (e.g., "agent_1234567890abcdef")
+- Password: Your API Key (long alphanumeric string)
+- Host: sip.elevenlabs.io (always this)
+- Port: 5060 (UDP/TCP)
+- Domain: elevenlabs.io
+```
+
+#### **Step 5: Update .env File**
 ```bash
+# Edit your .env file with the credentials:
 SIP_TRUNK_HOST=sip.elevenlabs.io
 SIP_TRUNK_PORT=5060
-SIP_USERNAME=your_agent_id
-SIP_PASSWORD=your_api_key
+SIP_USERNAME=your_agent_id_here          # From ElevenLabs
+SIP_PASSWORD=your_api_key_here           # From ElevenLabs
 SIP_DOMAIN=elevenlabs.io
 ```
 
