@@ -15,6 +15,12 @@ services:
     networks:
       - bridge-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9022"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # Sipwise RTPEngine Media Proxy
   rtpengine:
@@ -47,8 +53,14 @@ services:
       --log-stderr
       --table=0
       --tos=184
-      --no-fallback
+      --dtls-passive
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pgrep", "rtpengine"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   # Node.js Signaling Server
   signaling-server:
@@ -75,13 +87,21 @@ services:
       - ./server:/app
       - /app/node_modules
     depends_on:
-      - drachtio
-      - rtpengine
+      drachtio:
+        condition: service_healthy
+      rtpengine:
+        condition: service_started
     networks:
       - bridge-network
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # Web Client (Nginx)
   web-client:
