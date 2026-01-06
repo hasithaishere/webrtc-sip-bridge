@@ -11,7 +11,7 @@ services:
       - "5060:5060/tcp" # SIP TCP
     volumes:
       - ./drachtio/drachtio.conf.xml:/etc/drachtio.conf.xml
-    command: drachtio --daemon=false --sofia-loglevel=3
+    command: drachtio --sofia-loglevel=3
     networks:
       - bridge-network
     restart: unless-stopped
@@ -45,7 +45,7 @@ services:
       - RECORDING_DIR=/tmp
     command: >
       rtpengine
-      --interface=internal/127.0.0.1!${PUBLIC_IP:-127.0.0.1}
+      --interface=127.0.0.1!${PUBLIC_IP:-127.0.0.1}
       --listen-ng=127.0.0.1:2223
       --port-min=10000
       --port-max=20000
@@ -54,7 +54,8 @@ services:
       --table=0
       --tos=184
       --dtls-passive
-      --no-websocket
+      --no-kernel-tracing
+      --foreground
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "pgrep", "rtpengine"]
