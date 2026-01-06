@@ -1,4 +1,4 @@
-version: "3.8"
+version: '3.8'
 
 services:
   # Drachtio SIP Server
@@ -6,25 +6,19 @@ services:
     image: drachtio/drachtio-server:latest
     container_name: drachtio-server
     ports:
-      - "9022:9022" # Drachtio control port
-      - "5060:5060/udp" # SIP UDP
-      - "5060:5060/tcp" # SIP TCP
+      - "9022:9022"  # Drachtio control port
+      - "5060:5060/udp"  # SIP UDP
+      - "5060:5060/tcp"  # SIP TCP
     volumes:
       - ./drachtio/drachtio.conf.xml:/etc/drachtio.conf.xml
-    command: drachtio --sofia-loglevel=3
+    command: drachtio --daemon=false --sofia-loglevel=3
     networks:
       - bridge-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "9022"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
 
   # Sipwise RTPEngine Media Proxy
   rtpengine:
-    image: drachtio/rtpengine:latest
+    image: sipwise/rtpengine:latest
     container_name: rtpengine
     network_mode: host
     privileged: true
@@ -45,7 +39,7 @@ services:
       - RECORDING_DIR=/tmp
     command: >
       rtpengine
-      --interface=127.0.0.1!${PUBLIC_IP:-127.0.0.1}
+      --interface=internal/127.0.0.1!${PUBLIC_IP:-127.0.0.1}
       --listen-ng=127.0.0.1:2223
       --port-min=10000
       --port-max=20000
@@ -53,16 +47,8 @@ services:
       --log-stderr
       --table=0
       --tos=184
-      --dtls-passive
-      --no-kernel-tracing
-      --foreground
+      --no-fallback
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "pgrep", "rtpengine"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
 
   # Node.js Signaling Server
   signaling-server:
@@ -71,7 +57,7 @@ services:
       dockerfile: Dockerfile
     container_name: signaling-server
     ports:
-      - "3000:3000" # HTTP and WebSocket
+      - "3000:3000"  # HTTP and WebSocket
     environment:
       - NODE_ENV=production
       - DRACHTIO_HOST=drachtio
@@ -89,21 +75,13 @@ services:
       - ./server:/app
       - /app/node_modules
     depends_on:
-      drachtio:
-        condition: service_healthy
-      rtpengine:
-        condition: service_started
+      - drachtio
+      - rtpengine
     networks:
       - bridge-network
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
   # Web Client (Nginx)
   web-client:
@@ -122,4 +100,4 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.0.0/16
+        - subnet: 172.18.0.0/16

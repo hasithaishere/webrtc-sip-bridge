@@ -3,6 +3,7 @@
   <admin>
     <port>9022</port>
     <secret>cymru</secret>
+    <tls-port>0</tls-port>
   </admin>
 
   <request-handlers>
