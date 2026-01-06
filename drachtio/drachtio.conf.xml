@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<drachtio>
+  <admin>
+    <port>9022</port>
+    <secret>cymru</secret>
+  </admin>
+
+  <request-handlers>
+    <request-handler sip-method="INVITE"/>
+    <request-handler sip-method="BYE"/>
+    <request-handler sip-method="CANCEL"/>
+    <request-handler sip-method="ACK"/>
+    <request-handler sip-method="OPTIONS"/>
+    <request-handler sip-method="INFO"/>
+    <request-handler sip-method="UPDATE"/>
+  </request-handlers>
+
+  <sip>
+    <contacts>
+      <contact>sip:*:5060;transport=udp</contact>
+      <contact>sip:*:5060;transport=tcp</contact>
+    </contacts>
+
+    <timers>
+      <t1>500</t1>
+      <t2>4000</t2>
+      <t4>5000</t4>
+      <t1x64>32000</t1x64>
+    </timers>
+
+    <spammers action="reject" />
+  </sip>
+
+  <logging>
+    <sofia-loglevel>3</sofia-loglevel>
+    <loglevel>info</loglevel>
+  </logging>
+</drachtio>

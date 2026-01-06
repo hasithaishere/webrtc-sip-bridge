@@ -1,0 +1,103 @@
+version: "3.8"
+
+services:
+  # Drachtio SIP Server
+  drachtio:
+    image: drachtio/drachtio-server:latest
+    container_name: drachtio-server
+    ports:
+      - "9022:9022" # Drachtio control port
+      - "5060:5060/udp" # SIP UDP
+      - "5060:5060/tcp" # SIP TCP
+    volumes:
+      - ./drachtio/drachtio.conf.xml:/etc/drachtio.conf.xml
+    command: drachtio --daemon=false --sofia-loglevel=3
+    networks:
+      - bridge-network
+    restart: unless-stopped
+
+  # Sipwise RTPEngine Media Proxy
+  rtpengine:
+    image: sipwise/rtpengine:latest
+    container_name: rtpengine
+    network_mode: host
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - SYS_NICE
+    volumes:
+      - /proc:/proc
+      - ./rtpengine:/etc/rtpengine
+    environment:
+      - TABLE=0
+      - LISTEN_NG=127.0.0.1:2223
+      - INTERFACES=internal/127.0.0.1!${PUBLIC_IP:-127.0.0.1}
+      - PORT_MIN=10000
+      - PORT_MAX=20000
+      - LOG_LEVEL=6
+      - TOS=184
+      - RECORDING_DIR=/tmp
+    command: >
+      rtpengine
+      --interface=internal/127.0.0.1!${PUBLIC_IP:-127.0.0.1}
+      --listen-ng=127.0.0.1:2223
+      --port-min=10000
+      --port-max=20000
+      --log-level=6
+      --log-stderr
+      --table=0
+      --tos=184
+      --no-fallback
+    restart: unless-stopped
+
+  # Node.js Signaling Server
+  signaling-server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: signaling-server
+    ports:
+      - "3000:3000" # HTTP and WebSocket
+    environment:
+      - NODE_ENV=production
+      - DRACHTIO_HOST=drachtio
+      - DRACHTIO_PORT=9022
+      - DRACHTIO_SECRET=cymru
+      - RTPENGINE_HOST=host.docker.internal
+      - RTPENGINE_PORT=2223
+      - SIP_TRUNK_HOST=${SIP_TRUNK_HOST}
+      - SIP_TRUNK_PORT=${SIP_TRUNK_PORT:-5060}
+      - SIP_USERNAME=${SIP_USERNAME}
+      - SIP_PASSWORD=${SIP_PASSWORD}
+      - SIP_DOMAIN=${SIP_DOMAIN}
+      - PUBLIC_IP=${PUBLIC_IP:-127.0.0.1}
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+    depends_on:
+      - drachtio
+      - rtpengine
+    networks:
+      - bridge-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  # Web Client (Nginx)
+  web-client:
+    image: nginx:alpine
+    container_name: web-client
+    ports:
+      - "8080:80"
+    volumes:
+      - ./client:/usr/share/nginx/html:ro
+    networks:
+      - bridge-network
+    restart: unless-stopped
+
+networks:
+  bridge-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.0.0/16

@@ -1,0 +1,251 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'WebRTC-SIP Bridge Server on Amazon Linux with Sipwise RTPEngine'
+
+Parameters:
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t3.medium
+    AllowedValues:
+      - t3.small
+      - t3.medium
+      - t3.large
+      - t3.xlarge
+      - t3.2xlarge
+    ConstraintDescription: Must be a valid EC2 instance type
+
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: Must be the name of an existing EC2 KeyPair
+
+  SSHLocation:
+    Description: IP address range that can SSH to the EC2 instance
+    Type: String
+    Default: 0.0.0.0/0
+    AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
+    ConstraintDescription: Must be a valid IP CIDR range (e.g., 0.0.0.0/0)
+
+  VolumeSize:
+    Description: EBS Volume Size (GB)
+    Type: Number
+    Default: 30
+    MinValue: 20
+    MaxValue: 100
+
+  VpcId:
+    Description: Select the VPC where the WebRTC-SIP Bridge will be deployed
+    Type: AWS::EC2::VPC::Id
+    ConstraintDescription: Must be a valid VPC ID
+
+  PublicSubnetId:
+    Description: Select a public subnet in the chosen VPC for the EC2 instance
+    Type: AWS::EC2::Subnet::Id
+    ConstraintDescription: Must be a valid subnet ID in the selected VPC
+
+Resources:
+  # Security Group
+  WebRTCSIPSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: WebRTC-SIP-Bridge-SG
+      GroupDescription: Security group for WebRTC-SIP Bridge with Sipwise RTPEngine
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        # SSH Access
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref SSHLocation
+          Description: SSH Access
+        
+        # HTTP - Web Client
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0
+          Description: Web Client Interface
+        
+        # WebSocket Signaling Server
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: 0.0.0.0/0
+          Description: WebSocket Signaling
+        
+        # SIP UDP
+        - IpProtocol: udp
+          FromPort: 5060
+          ToPort: 5060
+          CidrIp: 0.0.0.0/0
+          Description: SIP UDP
+        
+        # SIP TCP
+        - IpProtocol: tcp
+          FromPort: 5060
+          ToPort: 5060
+          CidrIp: 0.0.0.0/0
+          Description: SIP TCP
+        
+        # SIP TLS (optional)
+        - IpProtocol: tcp
+          FromPort: 5061
+          ToPort: 5061
+          CidrIp: 0.0.0.0/0
+          Description: SIP TLS
+        
+        # RTP/RTCP Media Ports (Sipwise RTPEngine)
+        - IpProtocol: udp
+          FromPort: 10000
+          ToPort: 20000
+          CidrIp: 0.0.0.0/0
+          Description: RTP Media Ports
+        
+        # HTTPS (optional, for future SSL)
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS
+        
+        # HTTP (optional)
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: HTTP
+      
+      SecurityGroupEgress:
+        # Allow all outbound traffic
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+          Description: All Outbound Traffic
+      
+      Tags:
+        - Key: Name
+          Value: WebRTC-SIP-Bridge-SecurityGroup
+        - Key: Application
+          Value: WebRTC-SIP-Bridge
+        - Key: Environment
+          Value: Production
+
+  # IAM Role for EC2 (for future CloudWatch logs, etc.)
+  EC2InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: WebRTC-SIP-Bridge-Role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Tags:
+        - Key: Name
+          Value: WebRTC-SIP-Bridge-Role
+
+  # Instance Profile
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: WebRTC-SIP-Bridge-InstanceProfile
+      Roles:
+        - !Ref EC2InstanceRole
+
+  # Elastic IP for consistent public IP
+  ElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: WebRTC-SIP-Bridge-EIP
+        - Key: Application
+          Value: WebRTC-SIP-Bridge
+
+  # EIP Association
+  EIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref EC2Instance
+      AllocationId: !GetAtt ElasticIP.AllocationId
+
+  # EC2 Instance
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}'
+      SubnetId: !Ref PublicSubnetId
+      SecurityGroupIds:
+        - !Ref WebRTCSIPSecurityGroup
+      
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: !Ref VolumeSize
+            VolumeType: gp3
+            DeleteOnTermination: true
+            Encrypted: true
+      
+      Tags:
+        - Key: Name
+          Value: WebRTC-SIP-Bridge-Server
+        - Key: Application
+          Value: WebRTC-SIP-Bridge
+        - Key: Environment
+          Value: Production
+
+      Monitoring: true
+
+Outputs:
+  InstanceId:
+    Description: Instance ID of the EC2 instance
+    Value: !Ref EC2Instance
+    Export:
+      Name: !Sub '${AWS::StackName}-InstanceId'
+
+  PublicIP:
+    Description: Elastic IP address (use this as PUBLIC_IP in .env)
+    Value: !Ref ElasticIP
+    Export:
+      Name: !Sub '${AWS::StackName}-PublicIP'
+
+  PublicDNS:
+    Description: Public DNS name of the instance
+    Value: !GetAtt EC2Instance.PublicDnsName
+    Export:
+      Name: !Sub '${AWS::StackName}-PublicDNS'
+
+  WebClientURL:
+    Description: URL to access the web client
+    Value: !Sub 'http://${ElasticIP}:8080'
+
+  HealthCheckURL:
+    Description: Health check endpoint
+    Value: !Sub 'http://${ElasticIP}:3000/health'
+
+  SSHCommand:
+    Description: SSH command to connect to the instance
+    Value: !Sub 'ssh -i ${KeyName}.pem ec2-user@${ElasticIP}'
+
+  SecurityGroupId:
+    Description: Security Group ID
+    Value: !Ref WebRTCSIPSecurityGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-SecurityGroupId'
+
+  SetupInstructions:
+    Description: Next steps after stack creation
+    Value: !Sub |
+      1. SSH to instance: ssh -i ${KeyName}.pem ec2-user@${ElasticIP}
+      2. Download setup: curl -o setup-aws.sh https://your-repo/setup-aws.sh
+      3. Run setup: chmod +x setup-aws.sh && sudo ./setup-aws.sh
+      4. Configure .env with PUBLIC_IP=${ElasticIP}
+      5. Access web client: http://${ElasticIP}:8080
