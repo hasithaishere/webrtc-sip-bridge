@@ -18,7 +18,7 @@ services:
 
   # Sipwise RTPEngine Media Proxy
   rtpengine:
-    image: sipwise/rtpengine:latest
+    image: drachtio/rtpengine:latest
     container_name: rtpengine
     network_mode: host
     privileged: true
