@@ -54,6 +54,7 @@ services:
       --table=0
       --tos=184
       --dtls-passive
+      --no-websocket
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "pgrep", "rtpengine"]
@@ -120,4 +121,4 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.18.0.0/16
+        - subnet: 172.20.0.0/16
