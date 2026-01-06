@@ -24,7 +24,9 @@ Complete system for bridging WebRTC clients to SIP trunks using Drachtio SIP ser
 
 ## 🚀 Quick Start
 
-### 1. Clone or Create Project Structure
+### Option A: Local Development
+
+#### 1. Clone or Create Project Structure
 
 ```bash
 mkdir webrtc-sip-bridge
@@ -107,6 +109,46 @@ docker-compose logs -f
 2. Click "Start Call" button
 3. Grant microphone permissions
 4. Call should connect to your SIP trunk
+
+### Option B: AWS Cloud Deployment
+
+#### 1. Deploy Infrastructure
+Use the CloudFormation template for one-click AWS deployment:
+```bash
+# See docs/AWS_DEPLOYMENT_GUIDE.md for complete instructions
+```
+
+#### 2. Clone and Setup
+```bash
+# SSH to your EC2 instance (from CloudFormation outputs)
+ssh -i your-key.pem ec2-user@YOUR_PUBLIC_IP
+
+# Clone the repository
+git clone https://github.com/hasithaishere/webrtc-sip-bridge.git
+cd webrtc-sip-bridge
+
+# Run AWS setup (installs all dependencies)
+sudo ./infra/setup-aws.sh
+```
+
+#### 3. Configure and Start
+```bash
+# Edit environment variables
+nano .env
+
+# Install dependencies
+cd server && npm install && cd ..
+
+# Start services
+docker-compose up -d
+
+# Test deployment
+curl http://localhost:3000/health
+```
+
+**Access your deployed system:**
+- Web Client: `http://YOUR_PUBLIC_IP:8080`
+- Health Check: `http://YOUR_PUBLIC_IP:3000/health`
 
 ## 🏗️ Architecture
 

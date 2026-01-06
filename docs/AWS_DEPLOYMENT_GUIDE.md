@@ -85,56 +85,18 @@ aws cloudformation describe-stacks \
 ssh -i webrtc-sip-bridge-key.pem ec2-user@YOUR_PUBLIC_IP
 ```
 
-### Step 5: Upload Project Files
-
-**Option A: Using SCP from your local machine**
+### Step 5: Clone Project and Run AWS Setup
 
 ```bash
-# From your local machine (where you have the project files)
-scp -i webrtc-sip-bridge-key.pem -r \
-  docker-compose.yml \
-  drachtio/ \
-  rtpengine/ \
-  server/ \
-  client/ \
-  ec2-user@YOUR_PUBLIC_IP:~/webrtc-sip-bridge/
-```
+# SSH to your instance
+ssh -i webrtc-sip-bridge-key.pem ec2-user@YOUR_PUBLIC_IP
 
-**Option B: Clone from Git (if you've pushed to a repo)**
-
-```bash
-# On the EC2 instance
-cd ~
+# Clone the repository (replace with your actual repo URL)
 git clone https://github.com/hasithaishere/webrtc-sip-bridge.git
-```
+cd webrtc-sip-bridge
 
-**Option C: Create files manually**
-
-```bash
-# On the EC2 instance
-cd ~/webrtc-sip-bridge
-mkdir -p drachtio rtpengine server client
-
-# Create docker-compose.yml
-nano docker-compose.yml
-# Paste content and save (Ctrl+X, Y, Enter)
-
-# Repeat for all files
-```
-
-### Step 6: Run Setup Script
-
-```bash
-# Download the setup script (copy from artifact above)
-nano setup-aws.sh
-# Paste the setup script content
-# Save and exit
-
-# Make it executable
-chmod +x setup-aws.sh
-
-# Run as root
-sudo ./setup-aws.sh
+# Run the AWS-specific setup script (installs Docker, Docker Compose, Node.js, etc.)
+sudo ./infra/setup-aws.sh
 ```
 
 The script will:

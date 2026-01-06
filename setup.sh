@@ -24,28 +24,18 @@ echo ""
 echo "📁 Creating directory structure..."
 mkdir -p drachtio rtpengine server client
 
-# Check if .env exists
+# Check if .env exists, if not copy from .env.example
 if [ ! -f .env ]; then
-    echo "⚠️  .env file not found. Creating template..."
-    cat > .env << 'EOF'
-# SIP Trunk Configuration (ElevenLabs)
-SIP_TRUNK_HOST=sip.elevenlabs.io
-SIP_TRUNK_PORT=5060
-SIP_USERNAME=your_elevenlabs_username
-SIP_PASSWORD=your_elevenlabs_password
-SIP_DOMAIN=elevenlabs.io
-
-# Public IP for RTP (replace with your actual public IP)
-PUBLIC_IP=127.0.0.1
-
-# Drachtio Configuration
-DRACHTIO_SECRET=cymru
-
-# Server Port
-SERVER_PORT=3000
-EOF
-    echo "⚠️  Please edit .env file with your SIP trunk credentials!"
-    echo ""
+    if [ -f .env.example ]; then
+        echo "📋 Copying environment template..."
+        cp .env.example .env
+        echo "⚠️  .env file created from template. Please edit it with your SIP credentials!"
+        echo "   nano .env"
+        echo ""
+    else
+        echo "⚠️  .env.example not found. Please create .env manually."
+        echo ""
+    fi
 fi
 
 # Get public IP

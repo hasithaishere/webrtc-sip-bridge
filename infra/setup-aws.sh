@@ -161,18 +161,30 @@ echo "✅ Kernel optimized"
 echo ""
 
 # ==========================================
-# 9. CREATE PROJECT DIRECTORY
+# 9. SETUP PROJECT DIRECTORY
 # ==========================================
-echo "📁 Creating project directory..."
+echo "📁 Setting up project directory..."
 
 PROJECT_DIR="$USER_HOME/webrtc-sip-bridge"
-mkdir -p "$PROJECT_DIR"
-cd "$PROJECT_DIR"
 
-# Create directory structure
-mkdir -p drachtio rtpengine server client
+# Check if project directory exists (from git clone)
+if [ -d "$PROJECT_DIR" ]; then
+    echo "✅ Project directory exists (cloned from git): $PROJECT_DIR"
+    cd "$PROJECT_DIR"
 
-echo "✅ Project directory created: $PROJECT_DIR"
+    # Verify this is the correct project
+    if [ ! -f "docker-compose.yml" ] || [ ! -d "server" ] || [ ! -d "client" ]; then
+        echo "⚠️  This doesn't look like the webrtc-sip-bridge project directory."
+        echo "   Please ensure you've cloned the correct repository."
+        exit 1
+    fi
+else
+    echo "❌ Project directory not found. Please clone the repository first:"
+    echo "   git clone https://github.com/hasithaishere/webrtc-sip-bridge.git"
+    exit 1
+fi
+
+echo "✅ Project directory ready: $PROJECT_DIR"
 echo ""
 
 # ==========================================
@@ -190,11 +202,18 @@ echo "   Detected Public IP: $PUBLIC_IP"
 echo ""
 
 # ==========================================
-# 11. CREATE .ENV FILE
+# 11. SETUP ENVIRONMENT
 # ==========================================
-echo "📝 Creating .env configuration file..."
+echo "📝 Setting up environment configuration..."
 
-cat > "$PROJECT_DIR/.env" << EOF
+# Copy .env.example to .env if it doesn't exist
+if [ ! -f "$PROJECT_DIR/.env" ]; then
+    if [ -f "$PROJECT_DIR/.env.example" ]; then
+        cp "$PROJECT_DIR/.env.example" "$PROJECT_DIR/.env"
+        echo "✅ .env file created from template"
+    else
+        echo "⚠️  .env.example not found, creating basic .env file..."
+        cat > "$PROJECT_DIR/.env" << EOF
 # SIP Trunk Configuration
 # UPDATE THESE WITH YOUR PROVIDER CREDENTIALS!
 SIP_TRUNK_HOST=sip.elevenlabs.io
@@ -212,8 +231,17 @@ DRACHTIO_SECRET=cymru
 # Server Port
 SERVER_PORT=3000
 EOF
+    fi
+else
+    echo "ℹ️  .env file already exists, skipping creation"
+fi
 
-echo "✅ .env file created"
+# Update PUBLIC_IP in .env file if it's set to a placeholder
+if grep -q "PUBLIC_IP=your_public_ip_address" "$PROJECT_DIR/.env" 2>/dev/null; then
+    sed -i "s/PUBLIC_IP=your_public_ip_address/PUBLIC_IP=$PUBLIC_IP/" "$PROJECT_DIR/.env"
+    echo "✅ Updated PUBLIC_IP in .env file"
+fi
+
 echo ""
 
 # ==========================================
@@ -225,35 +253,29 @@ echo "========================================"
 echo ""
 echo "📋 Next Steps:"
 echo ""
-echo "1️⃣  IMPORTANT: Add your project files"
-echo "   Copy all project files to: $PROJECT_DIR"
-echo "   You need:"
-echo "   - docker-compose.yml"
-echo "   - drachtio/drachtio.conf.xml"
-echo "   - rtpengine/rtpengine.conf"
-echo "   - server/ (all files)"
-echo "   - client/ (all files)"
-echo ""
-echo "2️⃣  Configure SIP credentials:"
-echo "   sudo nano $PROJECT_DIR/.env"
+echo "1️⃣  Configure SIP credentials:"
+echo "   nano $PROJECT_DIR/.env"
 echo "   Update: SIP_USERNAME, SIP_PASSWORD, SIP_TRUNK_HOST"
+echo "   (PUBLIC_IP has been auto-detected and set)"
 echo ""
-echo "3️⃣  Install Node.js dependencies:"
+echo "2️⃣  Install Node.js dependencies:"
 echo "   cd $PROJECT_DIR/server"
 echo "   npm install"
-echo "   cd .."
 echo ""
-echo "4️⃣  Start the services:"
+echo "3️⃣  Start the services:"
 echo "   cd $PROJECT_DIR"
 echo "   docker-compose up -d"
 echo ""
-echo "5️⃣  Check status:"
+echo "4️⃣  Check status:"
 echo "   docker-compose ps"
-echo "   docker-compose logs -f"
+echo "   curl http://localhost:3000/health"
 echo ""
-echo "6️⃣  Test the system:"
-echo "   Health Check: http://$PUBLIC_IP:3000/health"
+echo "5️⃣  Test the system:"
 echo "   Web Client:   http://$PUBLIC_IP:8080"
+echo "   Health Check: http://$PUBLIC_IP:3000/health"
+echo ""
+echo "6️⃣  View logs if needed:"
+echo "   docker-compose logs -f"
 echo ""
 echo "========================================"
 echo "📊 System Information"
